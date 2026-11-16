@@ -1,0 +1,33 @@
+# Secrets - never commit
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated / runtime data
+.cache/
+output/
+_preview/
+*.pkl
+*.xlsx
+*.xls
+
+# Client data (e-mail addresses)
+distribution_list*.csv
+
+# Local backups and reference material
+_original_backup/
+AuthBridge*Mail*.pdf
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Legacy tracker with hardcoded DB credentials - not part of this app
+wipTracker.py

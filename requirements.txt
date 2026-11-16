@@ -1,0 +1,10 @@
+streamlit
+pandas
+numpy
+sqlalchemy
+mysql-connector-python
+xlsxwriter
+openpyxl
+reportlab
+boto3
+google-genai
