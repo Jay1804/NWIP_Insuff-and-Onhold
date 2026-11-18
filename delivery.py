@@ -87,13 +87,13 @@ def _stats(label: str, p: pd.DataFrame) -> str:
     body = p.drop(index="Grand Total")
     aged = int(body[AGED_BUCKETS].to_numpy().sum())
     buckets = ", ".join(f"{b}: {int(p.loc['Grand Total', b])}" for b in tc.BUCKET_ORDER)
-    top = ", ".join(f"{n} ({int(v)})" for n, v in body["Grand Total"].head(5).items())
-    top_aged = body[AGED_BUCKETS].sum(axis=1).sort_values(ascending=False).head(3)
-    top_aged = ", ".join(f"{n} ({int(v)})" for n, v in top_aged.items() if v > 0) or "none"
     oldest = int(p.loc["Grand Total", "181+"])
+    rows = []
+    for n, r in body.sort_values("Grand Total", ascending=False).head(10).iterrows():
+        rows.append(f"    - {n}: total {int(r['Grand Total'])}, older than 30 days {int(r[AGED_BUCKETS].sum())}, "
+                    f"older than 90 days {int(r[['91-120', '121-180', '181+']].sum())}, 181+ days {int(r['181+'])}")
     return (f"{label}: total {total}; older than 30 working days {aged} ({aged * 100 // max(total, 1)}%); "
-            f"181+ days {oldest}.\n  Bucket counts -> {buckets}.\n  Top check types -> {top}.\n"
-            f"  Check types with most aged (31+) items -> {top_aged}.")
+            f"181+ days {oldest}.\n  Bucket counts -> {buckets}.\n  Check types (largest first):\n" + "\n".join(rows))
 
 
 def rule_based_insights(client: str, pivots: list[tuple[str, pd.DataFrame]]) -> str:
@@ -121,15 +121,17 @@ def generate_insights(client: str, pivots: list[tuple[str, pd.DataFrame]], use_g
     prompt = (
         "You are a senior operations analyst at a background-verification company writing the 'Insights' section "
         f"of a report for the client '{client}'. Below are aggregate ageing figures (working days) of their open "
-        "Insufficiency and/or On-Hold checks. Write 6-8 bullet points (each starting with '- '), ordered by "
-        "importance: (1) a headline bullet with the total open checks and the share older than 30 working days; "
-        "(2) where the backlog sits - name the specific check types and counts in the oldest buckets; "
-        "(3) the oldest items (181+ / 121-180 days) and the risk of closure if no action is taken; "
-        "(4) any encouraging trend (large share still in the 0-14 day buckets); "
-        "(5) 2-3 concrete, prioritised actions for the client (e.g. which documents/clarifications/go-aheads to "
-        "provide first, starting with the oldest and the check types with most aged items). "
+        "Insufficiency and/or On-Hold checks. IMPORTANT: the reader sees only a one-row bucket-count table per "
+        "category and your bullets - no check-level table - so every bullet must be self-explanatory: say whether a "
+        "number refers to Insufficiency or On-Hold checks, name the check types, and write ages as 'working days'. "
+        "Keep it SHORT and crisp: write exactly 3 bullet points (each starting with '- '), in this order: "
+        "(1) a headline bullet with the total open checks and the share older than 30 working days; "
+        "(2) where the aged backlog sits - name the top check types with their aged counts for each category; "
+        "(3) the oldest items and the risk of closure if no action is taken. "
+        "Do NOT include positive trends, recommended actions or next steps. Never use '**' except as balanced bold pairs. "
         "Be specific with numbers, factual and professional, no greetings, no headings, no markdown other than "
-        "**bold** for key numbers. Use ONLY the numbers given; do not invent anything.\n\n"
+        "**bold** for key numbers. Use ONLY the numbers given; do not invent anything - in particular never name a closure status or outcome "
+        "(say only that such checks 'may be closed'), and never mention policies, dates or deadlines not given.\n\n"
         + "\n".join(_stats(l, p) for l, p in pivots))
     try:
         from google import genai
@@ -181,7 +183,7 @@ class Mailer:
         msg["From"], msg["To"], msg["Subject"] = os.environ["EMAIL_SENDER"], ", ".join(to), subject
         if cc:
             msg["Cc"] = ", ".join(cc)
-        msg.set_content("Please view this e-mail in an HTML-capable client. The ageing summary is also in the attached PDF.")
+        msg.set_content("Please view this e-mail in an HTML-capable client. The ageing details are in the attached Excel.")
         msg.add_alternative(html_body, subtype="html")
         for p in attachments:
             ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
@@ -190,13 +192,12 @@ class Mailer:
         self.s.send_message(msg, to_addrs=list(to) + list(cc))
 
 
-def build_email_html(client: str, items: list[tuple[tc.TrackerSpec, pd.DataFrame]], on: dt.date) -> str:
-    """Body = overall snapshot only (same overview as page 1 of the PDF). The check-level pivots and the
-    insights are in the attached PDF / Excel."""
+def build_email_html(client: str, items: list[tuple[tc.TrackerSpec, pd.DataFrame]], insights: str,
+                     on: dt.date) -> str:
+    """Body = the full content of the PDF: client/date line, overview, insights, sign-off."""
     return (f"<p style='font-family:Calibri,Arial,sans-serif;font-size:13px;'><b>{html.escape(client)}</b> "
-            f"&nbsp;|&nbsp; {on:%d-%b-%Y}</p>{tc.overview_html(items)}"
-            "<p style='font-family:Calibri,Arial,sans-serif;font-size:13px;'>The check-level details are in the "
-            "attached PDF and Excel list.<br><br>Regards,<br>AuthBridge Team</p>")
+            f"&nbsp;|&nbsp; {on:%d-%b-%Y}</p>{tc.overview_html(items)}{insights_to_html(insights)}"
+            f"{tc.signoff_html()}")
 
 
 # ----------------------------------------------------------------------------- s3

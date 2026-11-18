@@ -15,9 +15,9 @@ import pandas as pd
 import tracker_common as tc
 
 SPEC = tc.TrackerSpec(key="insuff", label="Insufficiency", bucket_col="CS Bucket - Insuff", check_status=3,
-    aged_from="31-45", threshold=">30 Days",
+    aged_from="31-45", threshold=">30 Working Days",
     blurb=("These pending checks represent a significant compliance and audit risk since mandatory documents are "
-           "pending at the candidate. Any check pending more than 30 days will be closed, unless communicated "
+           "pending at the candidate. Any check pending more than 30 working days will be closed, unless communicated "
            "here to keep them open."),
     ask="Required candidate documents/ details for insufficient checks")
 

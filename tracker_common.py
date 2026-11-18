@@ -170,9 +170,26 @@ def build_pivot(df: pd.DataFrame, bucket_col: str) -> pd.DataFrame:
 
 OVERVIEW_INTRO = ("We are writing to bring your immediate attention to several long-standing checks that remain "
                   "unresolved. To maintain data integrity and report accuracy, we are requesting a formal closure "
-                  "for these checks:")
+                  "for these checks. <i>All ageing buckets below are in working days (Monday-Friday, excluding "
+                  "holidays), not calendar days.</i>")
 OVERVIEW_CLOSING = ("In case of no action or response, such checks may be closed. Hence, it's imperative that the "
                     "attached list is reviewed.")
+
+
+SIGNOFF_LINES = [
+    "Please find attached the updated report regarding your Insufficiency and On-Hold Checks.",
+    "We look forward to your prompt response to prevent automatic closure.",
+]
+SIGNATURE_LINES = ["Regards,", "Authbridge Research Private Limited", "Web: www.authbridge.com"]
+DISCLAIMER = "This is a system generated email."
+
+
+def signoff_html() -> str:
+    font = "font-family:Calibri,Arial,sans-serif;font-size:13px;"
+    body = "".join(f"<p style='{font}'>{html.escape(l)}</p>" for l in SIGNOFF_LINES)
+    sig = "<br>".join(html.escape(l) for l in SIGNATURE_LINES)
+    return (f"<div style='{font}'>{body}<p>{sig}</p>"
+            f"<p style='font-size:11px;color:#555;'>{html.escape(DISCLAIMER)}</p></div>")
 
 
 def overview_counts(p: pd.DataFrame) -> list[int]:
@@ -298,7 +315,7 @@ def write_pdf(path: Path, client: str, sections: list[tuple[str, pd.DataFrame, i
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
-    from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     path.parent.mkdir(parents=True, exist_ok=True)
     ss = getSampleStyleSheet()
@@ -373,6 +390,13 @@ def write_pdf(path: Path, client: str, sections: list[tuple[str, pd.DataFrame, i
         text = html.escape(line.lstrip("-*• ").strip())
         text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
         story.append(Paragraph(f"&bull; {text}", body))
+    sign = [Spacer(1, 8)]
+    for line in SIGNOFF_LINES:
+        sign += [Paragraph(html.escape(line), body), Spacer(1, 3)]
+    sign += [Spacer(1, 26)] + [Paragraph(html.escape(l), body) for l in SIGNATURE_LINES]  # ~2 blank lines before Regards
+    sign += [Spacer(1, 6), Paragraph(f"<i>{html.escape(DISCLAIMER)}</i>",
+                                     ParagraphStyle("disc", parent=body, fontSize=8, textColor=colors.grey))]
+    story.append(KeepTogether(sign))
     doc.build(story)
     return path
 

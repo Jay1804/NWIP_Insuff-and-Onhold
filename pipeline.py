@@ -89,7 +89,7 @@ def build_client_report(data: dict[str, pd.DataFrame], client: str, out_dir: Pat
     stem = out_dir / base / f"{base}_Insuff_OnHold_Ageing_{today:%Y-%m-%d}"
     xlsx = tc.write_excel(stem.with_suffix(".xlsx"), parts)
     insights, src = dv.generate_insights(client, [(sp.label, p) for sp, p in items], use_gemini)
-    pdf = tc.write_pdf(stem.with_suffix(".pdf"), client, sections, insights, today,
+    pdf = tc.write_pdf(stem.with_suffix(".pdf"), client, [], insights, today,  # check-level detail lives in the Excel
                        heading="Insuff & On-Hold Ageing Summary", overview=items)
     return xlsx, pdf, insights, src, items
 
@@ -139,10 +139,9 @@ def run_pipeline(data: dict[str, pd.DataFrame], dist: pd.DataFrame, out_root: Pa
                 elif not to:
                     row["Mail"] = "no recipient in distribution list"
                 else:
-                    kinds = " and ".join("Insufficiency" if sp.key == "insuff" else "On-Hold" for sp, _ in items)
                     subj = (f"{'[TEST] ' if test_recipient else ''}Urgent: {client} – "
-                            f"Closure of Aged {kinds} Checks")
-                    mailer.send(to, cc, subj, dv.build_email_html(client, items, today), [pdf, xlsx])
+                            "Closure of Aged Insufficiency and On-Hold Checks")
+                    mailer.send(to, cc, subj, dv.build_email_html(client, items, insights, today), [xlsx])
                     row["Mail"] = "sent"
                 base = tc.safe_name(client)
                 row["S3"] = "/".join(sorted({upload(pdf, "Clients", base, pdf.name),

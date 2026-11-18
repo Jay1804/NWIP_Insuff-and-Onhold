@@ -15,8 +15,8 @@ import pandas as pd
 import tracker_common as tc
 
 SPEC = tc.TrackerSpec(key="onhold", label="On-Hold", bucket_col="CS Bucket - Onhold", check_status=2,
-    aged_from="61-90", threshold=">60 Days",
-    blurb=("Any case held at your request for more than 60 days will be closed, unless communicated here to keep "
+    aged_from="61-90", threshold=">60 Working Days",
+    blurb=("Any case held at your request for more than 60 working days will be closed, unless communicated here to keep "
            "them in unworkable. These also represent significant compliance risk."),
     ask="Go-ahead for on-hold checks")
 
